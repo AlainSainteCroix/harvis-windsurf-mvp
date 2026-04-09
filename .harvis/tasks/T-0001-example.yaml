@@ -20,11 +20,12 @@ scope:
 
 acceptance_criteria:
   - "Le script valide le result packet contre result-packet.schema.json"
-  - "Avec --task, le script charge le task packet YAML et effectue les contrôles croisés"
+  - "Avec --task, le task packet YAML est d'abord validé contre task-packet.schema.json (fail-fast)"
+  - "Avec --task, le script effectue les contrôles croisés task/result"
   - "Les changed_files sont vérifiés contre scope.allowed_paths et scope.forbidden_paths"
-  - "Les required_outputs du task packet sont vérifiés comme non vides dans le result packet"
-  - "La cohérence status/blockers/risks/changed_files est vérifiée"
-  - "Exit code 0 si valide, 1 si erreurs, 2 si erreur système"
+  - "Les required_outputs vérifient la présence (non-null) dans le result packet"
+  - "La cohérence status/blockers/risks/changed_files est vérifiée par règles de statut"
+  - "Exit code 0 si valide, 1 si erreurs de validation, 2 si erreur système"
 
 constraints:
   - "Python >= 3.11, annotations de types obligatoires"

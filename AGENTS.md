@@ -12,7 +12,7 @@ Ce dépôt est piloté par **Harvis**. Tout agent opérant ici doit respecter ce
 
 4. **Pas de "done" sans preuve** — Un résultat `completed` ou `completed_with_risks` exige : `changed_files` non vide, `checks` non vide, `next_step` renseigné. Le validateur `scripts/validate_task_result.py` fait autorité.
 
-5. **Outputs requis déclarés dans la tâche** — Le champ `required_outputs` du task packet est contraignant. Tout champ listé doit être renseigné et non vide dans le result packet.
+5. **Outputs requis déclarés dans la tâche** — Le champ `required_outputs` du task packet est contraignant. Tout champ listé doit être **présent (non null)** dans le result packet. Le caractère non-vide est imposé par les règles de cohérence de statut (voir règle 4 et `99-output-contract.md`).
 
 6. **Pas de merge direct sur `main`** — Tout changement passe par une pull request. Aucune exception.
 

@@ -40,6 +40,7 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULT_SCHEMA_PATH = REPO_ROOT / ".harvis" / "contracts" / "result-packet.schema.json"
+TASK_SCHEMA_PATH = REPO_ROOT / ".harvis" / "contracts" / "task-packet.schema.json"
 RESULTS_DIR = REPO_ROOT / ".harvis" / "results"
 TASKS_DIR = REPO_ROOT / ".harvis" / "tasks"
 
@@ -74,14 +75,25 @@ def resolve_task_path(task_id: str) -> Path:
     return candidate
 
 
-# ── Check 1 : JSON Schema ─────────────────────────────────────────────────────
+# ── Check 0 : Task packet schema ─────────────────────────────────────────────
+
+def check_task_packet_schema(task: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    try:
+        validate(instance=task, schema=schema)
+    except ValidationError as e:
+        errors.append(f"[task_schema] {e.message} (path: {list(e.absolute_path)})")
+    return errors
+
+
+# ── Check 1 : Result packet JSON Schema ───────────────────────────────────────
 
 def check_schema(result: dict[str, Any], schema: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     try:
         validate(instance=result, schema=schema)
     except ValidationError as e:
-        errors.append(f"[schema] {e.message} (path: {list(e.absolute_path)})")
+        errors.append(f"[result_schema] {e.message} (path: {list(e.absolute_path)})")
     return errors
 
 
@@ -131,16 +143,16 @@ def check_scope(task: dict[str, Any], result: dict[str, Any]) -> list[str]:
 
 
 # ── Check 4 : required_outputs presence ──────────────────────────────────────
+# required_outputs = the field must be PRESENT (non-null) in the result packet.
+# Whether the field must be non-empty is status-dependent and handled by
+# check_checks_present(), check_status_coherence(), check_changed_files_coherence().
 
 def check_required_outputs(task: dict[str, Any], result: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     required: list[str] = task.get("required_outputs", [])
     for field in required:
-        val = result.get(field)
-        if val is None:
+        if result.get(field) is None:
             errors.append(f"[required_outputs] '{field}' is missing from result packet")
-        elif val == [] or val == "":
-            errors.append(f"[required_outputs] '{field}' is present but empty")
     return errors
 
 
@@ -268,7 +280,21 @@ def main() -> int:
                 file=sys.stderr,
             )
 
-    mode = "schema + cross-task" if task else "schema only"
+    if task:
+        if not TASK_SCHEMA_PATH.exists():
+            print(f"ERROR: Task schema not found: {TASK_SCHEMA_PATH}", file=sys.stderr)
+            return 2
+        task_schema: dict[str, Any] = load_json(TASK_SCHEMA_PATH)
+        task_errors = check_task_packet_schema(task, task_schema)
+        if task_errors:
+            task_path = resolve_task_path(args.task)
+            print(f"Task packet : {task_path.relative_to(REPO_ROOT)}")
+            print(f"\n[FAIL] Task packet is invalid ({len(task_errors)} error(s)):")
+            for err in task_errors:
+                print(f"  x {err}")
+            return 1
+
+    mode = "task-schema + result-schema + cross-task" if task else "result-schema only"
     print(f"Validating [{mode}]: {result_path.relative_to(REPO_ROOT)}")
     if task:
         task_path = resolve_task_path(args.task)

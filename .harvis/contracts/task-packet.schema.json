@@ -94,7 +94,7 @@
           "commits"
         ]
       },
-      "description": "Champs que le result packet doit obligatoirement renseigner (non vides)"
+      "description": "Champs qui doivent être présents (non null) dans le result packet. Le caractère non-vide est imposé par les règles de cohérence de statut, pas par ce champ."
     },
     "execution_policy": {
       "type": "object",

@@ -1,15 +1,16 @@
 {
   "task_id": "T-0001-example",
   "status": "completed",
-  "summary": "scripts/validate_task_result.py réécrit avec 6 contrôles croisés task/result. Valide schéma JSON, scope, required_outputs, cohérence status/blockers/risks/changed_files. Dépendances : jsonschema + pyyaml.",
+  "summary": "scripts/validate_task_result.py finalisé : validation task packet (fail-fast) + result packet + 6 contrôles croisés. required_outputs = présence seule (non-null). Cohérence status/blockers/risks/changed_files par règles de statut. Dépendances : jsonschema + pyyaml.",
   "changed_files": [
     "scripts/validate_task_result.py"
   ],
   "checks": [
-    { "name": "schéma result-packet.schema.json v2 chargeable", "status": "pass" },
-    { "name": "chargement task packet YAML avec pyyaml", "status": "pass" },
+    { "name": "task packet validé contre task-packet.schema.json (fail-fast avant cross-checks)", "status": "pass" },
+    { "name": "result packet validé contre result-packet.schema.json v2", "status": "pass" },
+    { "name": "contrôle task_id : cohérence task vs result", "status": "pass" },
     { "name": "contrôle scope : changed_files vs allowed_paths/forbidden_paths", "status": "pass" },
-    { "name": "contrôle required_outputs : présence et non-vide", "status": "pass" },
+    { "name": "contrôle required_outputs : présence (non-null) uniquement", "status": "pass" },
     { "name": "contrôle checks obligatoires pour completed/completed_with_risks", "status": "pass" },
     { "name": "contrôle cohérence status/blockers/risks/changed_files", "status": "pass" },
     { "name": "exit codes 0/1/2 corrects", "status": "pass" },
@@ -19,22 +20,23 @@
     {
       "type": "file",
       "path": "scripts/validate_task_result.py",
-      "description": "Validateur CLI avec contrôles croisés task/result"
+      "description": "Validateur CLI — garde-fou du protocole Harvis/WindSurf"
     }
   ],
   "commits": [
     {
-      "hash": "pending",
-      "message": "feat: renforcer validate_task_result.py avec contrôles croisés v2"
+      "hash": "1c4fadc",
+      "message": "feat: contrats v2 + validateur croisé task/result — scope, required_outputs, status coherence"
     }
   ],
   "assumptions": [
     "pyyaml est disponible dans l'environnement (pip install pyyaml).",
     "Les chemins dans changed_files sont relatifs à repo_root.",
-    "Le matching de scope utilise fnmatch + préfixe de répertoire — suffisant pour le MVP."
+    "Le matching de scope utilise fnmatch + préfixe de répertoire — suffisant pour le MVP.",
+    "required_outputs contrôle la présence (non-null) ; le non-vide est délégué aux règles de statut."
   ],
   "risks": [],
   "blockers": [],
   "needs_human_approval": false,
-  "next_step": "Exécuter : python scripts/validate_task_result.py --task T-0001-example pour vérifier la validation croisée sur cet exemple."
+  "next_step": "Exécuter python scripts/validate_task_result.py --task T-0001-example et vérifier exit 0. Socle fermé."
 }

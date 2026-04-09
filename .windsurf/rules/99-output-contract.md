@@ -4,30 +4,40 @@ description: Contrat de sortie — ce que chaque agent doit obligatoirement prod
 
 # 99 — Output Contract
 
-Toute exécution d'agent DOIT produire un result packet JSON valide conforme à `harvis:result-packet:v2`.
+## Validation en mode --task (ordre d'exécution)
 
-## Champs obligatoires (toujours)
+1. Task packet YAML validé contre `task-packet.schema.json` (fail-fast — arrêt si invalide)
+2. Result packet JSON validé contre `result-packet.schema.json`
+3. Contrôles croisés task/result (task_id, scope, required_outputs, cohérence statut)
+
+## Champs du result packet (tous obligatoires par le schéma)
 
 - `task_id` — identique au task packet d'entrée
 - `status` — parmi `completed | completed_with_risks | blocked | failed | needs_clarification | out_of_scope`
 - `summary` — résumé lisible non vide
-- `changed_files` — liste (peut être vide pour `blocked`, `needs_clarification`, `out_of_scope`)
-- `checks` — liste (non vide si `completed` ou `completed_with_risks`)
-- `assumptions` — liste (peut être vide)
-- `risks` — liste (peut être vide)
-- `blockers` — liste (peut être vide)
+- `changed_files` — liste de chemins relatifs (peut être vide selon statut)
+- `checks` — liste de vérifications `{name, status, detail?}` (non vide si `completed*`)
+- `assumptions` — liste (vide autorisé)
+- `risks` — liste (non vide selon statut)
+- `blockers` — liste (non vide selon statut)
 - `needs_human_approval` — booléen
 - `next_step` — chaîne non vide
 
+## required_outputs : présence vs non-vide
+
+`required_outputs` dans le task packet = champs qui doivent être **présents (non null)**.
+Le caractère non-vide est imposé par les règles de statut ci-dessous, pas par `required_outputs`.
+
 ## Règles de cohérence enforced par le validateur
 
-| status                  | changed_files | checks   | blockers | risks    |
-|-------------------------|---------------|----------|----------|----------|
-| `completed`             | non vide      | non vide | vide     | —        |
-| `completed_with_risks`  | non vide      | non vide | —        | non vide |
-| `blocked`               | —             | —        | non vide | —        |
-| `failed`                | —             | —        | ou risks non vides      |
-| `out_of_scope`          | —             | —        | ou risks non vides      |
+| status                  | changed_files | checks   | blockers      | risks         |
+|-------------------------|---------------|----------|---------------|---------------|
+| `completed`             | non vide      | non vide | doit être vide | —            |
+| `completed_with_risks`  | non vide      | non vide | —             | non vide      |
+| `blocked`               | —             | —        | non vide      | —             |
+| `failed`                | —             | —        | non vide ou risks non vide  ||
+| `out_of_scope`          | —             | —        | non vide ou risks non vide  ||
+| `needs_clarification`   | —             | —        | —             | —             |
 
 ## Dépôt et validation
 
