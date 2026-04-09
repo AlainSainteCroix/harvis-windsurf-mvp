@@ -1,0 +1,12 @@
+{
+  "task_id": "T-0001-example",
+  "status": "completed",
+  "summary": "Fixture invalide : status=completed mais checks est vide.",
+  "changed_files": ["scripts/validate_task_result.py"],
+  "checks": [],
+  "assumptions": [],
+  "risks": [],
+  "blockers": [],
+  "needs_human_approval": false,
+  "next_step": "Ajouter au moins un check avant de déclarer completed."
+}

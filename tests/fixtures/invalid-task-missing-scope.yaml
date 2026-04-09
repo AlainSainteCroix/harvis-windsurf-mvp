@@ -1,0 +1,11 @@
+task_id: "T-9999-invalid"
+title: "Fixture invalide — champ scope absent"
+objective: "Cette tâche est intentionnellement invalide pour tester la validation fail-fast du task packet."
+repo_root: "/root/CascadeProjects/harvis-windsurf-mvp"
+branch_name: "test/invalid"
+executor: "cascade"
+# scope est volontairement absent — violation du schéma (champ requis)
+acceptance_criteria:
+  - "Cette tâche doit échouer la validation schema"
+required_outputs:
+  - "next_step"

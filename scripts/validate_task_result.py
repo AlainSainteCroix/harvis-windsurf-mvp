@@ -9,6 +9,9 @@ Usage:
     # Schema + full cross-task validation:
     python scripts/validate_task_result.py --task T-0001-example
 
+    # Direct task file path (utile pour les tests):
+    python scripts/validate_task_result.py --task-file path/to/task.yaml --file path/to/result.json
+
 Exit codes:
     0  — valid
     1  — validation errors
@@ -243,9 +246,17 @@ def main() -> int:
         "--file", metavar="PATH",
         help="Direct path to result JSON (uses task result file if --task given without --file)",
     )
+    parser.add_argument(
+        "--task-file", metavar="PATH",
+        help="Direct path to task YAML file (overrides --task lookup; requires --file)",
+    )
     args = parser.parse_args()
 
-    if not args.task and not args.file:
+    if args.task_file and not args.file:
+        print("ERROR: --task-file requires --file", file=sys.stderr)
+        return 1
+
+    if not args.task and not args.file and not args.task_file:
         parser.print_help()
         return 1
 
@@ -270,13 +281,23 @@ def main() -> int:
     schema: dict[str, Any] = load_json(RESULT_SCHEMA_PATH)
 
     task: dict[str, Any] | None = None
-    if args.task:
-        task_path = resolve_task_path(args.task)
-        if task_path.exists():
-            task = load_yaml(task_path)
+    task_display_path: Path | None = None
+
+    if args.task_file:
+        p = Path(args.task_file).resolve()
+        if not p.exists():
+            print(f"ERROR: Task file not found: {p}", file=sys.stderr)
+            return 2
+        task = load_yaml(p)
+        task_display_path = p
+    elif args.task:
+        p = resolve_task_path(args.task)
+        if p.exists():
+            task = load_yaml(p)
+            task_display_path = p
         else:
             print(
-                f"WARNING: Task file not found at {task_path} — skipping cross-checks",
+                f"WARNING: Task file not found at {p} — skipping cross-checks",
                 file=sys.stderr,
             )
 
@@ -287,8 +308,11 @@ def main() -> int:
         task_schema: dict[str, Any] = load_json(TASK_SCHEMA_PATH)
         task_errors = check_task_packet_schema(task, task_schema)
         if task_errors:
-            task_path = resolve_task_path(args.task)
-            print(f"Task packet : {task_path.relative_to(REPO_ROOT)}")
+            if task_display_path:
+                try:
+                    print(f"Task packet : {task_display_path.relative_to(REPO_ROOT)}")
+                except ValueError:
+                    print(f"Task packet : {task_display_path}")
             print(f"\n[FAIL] Task packet is invalid ({len(task_errors)} error(s)):")
             for err in task_errors:
                 print(f"  x {err}")
@@ -296,9 +320,11 @@ def main() -> int:
 
     mode = "task-schema + result-schema + cross-task" if task else "result-schema only"
     print(f"Validating [{mode}]: {result_path.relative_to(REPO_ROOT)}")
-    if task:
-        task_path = resolve_task_path(args.task)
-        print(f"Task packet : {task_path.relative_to(REPO_ROOT)}")
+    if task and task_display_path:
+        try:
+            print(f"Task packet : {task_display_path.relative_to(REPO_ROOT)}")
+        except ValueError:
+            print(f"Task packet : {task_display_path}")
 
     errors = run_all_checks(result, schema, task)
 

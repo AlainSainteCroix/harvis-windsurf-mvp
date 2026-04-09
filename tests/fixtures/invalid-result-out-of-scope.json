@@ -1,0 +1,17 @@
+{
+  "task_id": "T-0001-example",
+  "status": "completed",
+  "summary": "Fixture invalide : changed_files contient AGENTS.md qui est dans forbidden_paths.",
+  "changed_files": [
+    "scripts/validate_task_result.py",
+    "AGENTS.md"
+  ],
+  "checks": [
+    { "name": "check présent", "status": "pass" }
+  ],
+  "assumptions": [],
+  "risks": [],
+  "blockers": [],
+  "needs_human_approval": false,
+  "next_step": "Retirer AGENTS.md des changed_files — ce fichier est dans forbidden_paths."
+}
