@@ -1,53 +1,68 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "harvis:result-packet:v1",
+  "$id": "harvis:result-packet:v2",
   "title": "ResultPacket",
-  "description": "Contrat définissant la sortie produite par un agent Harvis pour une tâche donnée.",
+  "description": "Preuve d'exécution produite par un agent Harvis/WindSurf. Orientée validation concrète : fichiers modifiés, checks effectués, risques, blocages.",
   "type": "object",
-  "required": ["task_id", "agent_id", "status", "produced_at", "trace", "artifacts"],
+  "required": [
+    "task_id",
+    "status",
+    "summary",
+    "changed_files",
+    "checks",
+    "assumptions",
+    "risks",
+    "blockers",
+    "needs_human_approval",
+    "next_step"
+  ],
   "additionalProperties": false,
   "properties": {
     "task_id": {
       "type": "string",
       "pattern": "^T-[0-9]{4}-[a-z0-9-]+$"
     },
-    "agent_id": {
-      "type": "string",
-      "description": "Identifiant de l'agent ayant produit ce résultat"
-    },
     "status": {
       "type": "string",
-      "enum": ["success", "failure", "partial", "skipped"]
-    },
-    "produced_at": {
-      "type": "string",
-      "format": "date-time"
+      "enum": [
+        "completed",
+        "completed_with_risks",
+        "blocked",
+        "failed",
+        "needs_clarification",
+        "out_of_scope"
+      ]
     },
     "summary": {
       "type": "string",
-      "description": "Résumé lisible de ce qui a été fait"
+      "minLength": 1,
+      "description": "Résumé lisible de ce qui a été fait ou pourquoi pas"
     },
-    "trace": {
+    "changed_files": {
       "type": "array",
-      "description": "Log ordonné des décisions et étapes effectuées",
+      "items": { "type": "string" },
+      "description": "Chemins relatifs des fichiers réellement modifiés ou créés"
+    },
+    "checks": {
+      "type": "array",
+      "description": "Résultats des vérifications effectuées par l'agent",
       "items": {
         "type": "object",
-        "required": ["step", "message"],
+        "required": ["name", "status"],
         "additionalProperties": false,
         "properties": {
-          "step": { "type": "integer", "minimum": 1 },
-          "message": { "type": "string", "minLength": 1 },
-          "level": {
+          "name": { "type": "string", "minLength": 1 },
+          "status": {
             "type": "string",
-            "enum": ["info", "warning", "error"],
-            "default": "info"
-          }
+            "enum": ["pass", "fail", "skipped"]
+          },
+          "detail": { "type": "string" }
         }
       }
     },
     "artifacts": {
       "type": "array",
-      "description": "Fichiers ou sorties produits",
+      "description": "Sorties nommées produites par l'agent (optionnel)",
       "items": {
         "type": "object",
         "required": ["type", "path"],
@@ -62,16 +77,42 @@
         }
       }
     },
-    "error": {
-      "type": "object",
-      "description": "Présent uniquement si status est 'failure'",
-      "required": ["code", "message"],
-      "additionalProperties": false,
-      "properties": {
-        "code": { "type": "string" },
-        "message": { "type": "string" },
-        "recoverable": { "type": "boolean" }
+    "commits": {
+      "type": "array",
+      "description": "Commits git effectués pendant l'exécution (optionnel)",
+      "items": {
+        "type": "object",
+        "required": ["hash", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "hash": { "type": "string" },
+          "message": { "type": "string" }
+        }
       }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Hypothèses faites pendant l'exécution, non spécifiées dans le task packet"
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Risques identifiés dans le résultat produit"
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Éléments bloquants empêchant ou limitant l'exécution complète"
+    },
+    "needs_human_approval": {
+      "type": "boolean",
+      "description": "True si l'agent estime qu'une revue ou décision humaine est nécessaire avant de continuer"
+    },
+    "next_step": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Prochaine action recommandée, destinée au prochain agent ou à l'humain"
     }
   }
 }

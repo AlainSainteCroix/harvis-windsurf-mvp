@@ -1,10 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "harvis:task-packet:v1",
+  "$id": "harvis:task-packet:v2",
   "title": "TaskPacket",
-  "description": "Contrat définissant une tâche dispatchée à un agent Harvis.",
+  "description": "Contrat d'exécution borné pour un agent Harvis/WindSurf. Définit le scope autorisé, les critères d'acceptation et les outputs obligatoires.",
   "type": "object",
-  "required": ["task_id", "task_type", "created_at", "requested_by", "input"],
+  "required": [
+    "task_id",
+    "title",
+    "objective",
+    "repo_root",
+    "branch_name",
+    "executor",
+    "scope",
+    "acceptance_criteria",
+    "required_outputs"
+  ],
   "additionalProperties": false,
   "properties": {
     "task_id": {
@@ -12,77 +22,101 @@
       "pattern": "^T-[0-9]{4}-[a-z0-9-]+$",
       "description": "Identifiant unique de la tâche, ex: T-0001-example"
     },
-    "task_type": {
+    "title": {
       "type": "string",
-      "enum": ["code_generation", "code_review", "analysis", "documentation", "validation", "refactor", "other"],
-      "description": "Catégorie de la tâche"
+      "minLength": 1,
+      "description": "Titre court et lisible de la tâche"
     },
-    "created_at": {
+    "objective": {
       "type": "string",
-      "format": "date-time",
-      "description": "Timestamp de création ISO 8601"
+      "minLength": 1,
+      "description": "Ce que l'agent doit accomplir, en une phrase précise et vérifiable"
     },
-    "requested_by": {
+    "repo_root": {
       "type": "string",
-      "description": "Identifiant de l'agent ou de l'utilisateur ayant créé la tâche"
+      "description": "Chemin absolu du repo de travail"
     },
-    "priority": {
+    "branch_name": {
       "type": "string",
-      "enum": ["low", "normal", "high", "critical"],
-      "default": "normal"
+      "description": "Branche git sur laquelle l'agent opère"
     },
-    "authorization": {
+    "executor": {
       "type": "string",
-      "enum": ["pending", "approved", "denied"],
-      "default": "pending",
-      "description": "Doit être 'approved' pour les tâches risk:high"
+      "description": "Identifiant de l'agent exécuteur (ex: cascade)"
     },
-    "risk": {
+    "model_tier": {
       "type": "string",
-      "enum": ["low", "medium", "high"],
-      "default": "low"
+      "enum": ["fast", "high_capability"],
+      "description": "Profil de modèle requis pour cette tâche"
     },
-    "input": {
+    "scope": {
       "type": "object",
-      "description": "Payload d'entrée spécifique à la tâche",
-      "required": ["description"],
+      "required": ["allowed_paths"],
+      "additionalProperties": false,
       "properties": {
-        "description": { "type": "string" },
-        "context": { "type": "string" },
-        "files": {
+        "allowed_paths": {
           "type": "array",
-          "items": { "type": "string" }
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Chemins/patterns que l'agent est autorisé à modifier (supporte glob)"
         },
-        "constraints": {
+        "forbidden_paths": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Chemins/patterns que l'agent ne doit jamais toucher"
         }
-      },
-      "additionalProperties": true
+      }
     },
-    "output_spec": {
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Critères vérifiables qui définissent 'done' pour cette tâche"
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Contraintes techniques ou organisationnelles que l'agent doit respecter"
+    },
+    "required_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "changed_files",
+          "checks",
+          "assumptions",
+          "risks",
+          "blockers",
+          "next_step",
+          "artifacts",
+          "commits"
+        ]
+      },
+      "description": "Champs que le result packet doit obligatoirement renseigner (non vides)"
+    },
+    "execution_policy": {
       "type": "object",
-      "description": "Définit ce que l'agent doit produire",
+      "additionalProperties": false,
       "properties": {
-        "format": {
-          "type": "string",
-          "enum": ["json", "yaml", "markdown", "python", "text"]
+        "require_human_approval_for": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Actions nécessitant une approbation humaine explicite avant exécution"
         },
-        "target_files": {
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Nombre maximum de tentatives autorisées"
+        },
+        "escalate_if": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Conditions déclenchant une escalade vers un humain"
         }
-      },
-      "additionalProperties": false
-    },
-    "routing": {
-      "type": "object",
-      "description": "Override de routage explicite (optionnel)",
-      "properties": {
-        "agent_id": { "type": "string" },
-        "model_id": { "type": "string" }
-      },
-      "additionalProperties": false
+      }
     }
   }
 }

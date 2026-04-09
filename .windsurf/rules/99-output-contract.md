@@ -4,18 +4,33 @@ description: Contrat de sortie — ce que chaque agent doit obligatoirement prod
 
 # 99 — Output Contract
 
-Toute exécution d'agent DOIT produire un result packet qui :
+Toute exécution d'agent DOIT produire un result packet JSON valide conforme à `harvis:result-packet:v2`.
 
-- est un JSON valide conforme à `.harvis/contracts/result-packet.schema.json`
-- contient `task_id` identique à celui du task packet d'entrée
-- contient `status` parmi `["success", "failure", "partial", "skipped"]`
-- contient `agent_id` identifiant l'agent producteur
-- contient `produced_at` au format ISO 8601
-- contient `trace` (tableau ordonné, peut être vide mais doit être présent)
-- contient `artifacts` (tableau, peut être vide mais doit être présent)
+## Champs obligatoires (toujours)
 
-Le result packet est déposé dans `.harvis/results/<task_id>-result.json`.
+- `task_id` — identique au task packet d'entrée
+- `status` — parmi `completed | completed_with_risks | blocked | failed | needs_clarification | out_of_scope`
+- `summary` — résumé lisible non vide
+- `changed_files` — liste (peut être vide pour `blocked`, `needs_clarification`, `out_of_scope`)
+- `checks` — liste (non vide si `completed` ou `completed_with_risks`)
+- `assumptions` — liste (peut être vide)
+- `risks` — liste (peut être vide)
+- `blockers` — liste (peut être vide)
+- `needs_human_approval` — booléen
+- `next_step` — chaîne non vide
 
-**Absence de result packet valide = échec critique de l'agent.**
-Ne pas produire de result packet est interdit, même en cas d'erreur interne.
-En cas d'erreur, produire `status: failure` avec le champ `error` rempli.
+## Règles de cohérence enforced par le validateur
+
+| status                  | changed_files | checks   | blockers | risks    |
+|-------------------------|---------------|----------|----------|----------|
+| `completed`             | non vide      | non vide | vide     | —        |
+| `completed_with_risks`  | non vide      | non vide | —        | non vide |
+| `blocked`               | —             | —        | non vide | —        |
+| `failed`                | —             | —        | ou risks non vides      |
+| `out_of_scope`          | —             | —        | ou risks non vides      |
+
+## Dépôt et validation
+
+- Fichier : `.harvis/results/<task_id>-result.json`
+- Validation : `python scripts/validate_task_result.py --task <task_id>`
+- **Absence de result packet valide = échec critique de l'agent.**

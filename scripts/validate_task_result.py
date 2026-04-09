@@ -1,127 +1,289 @@
 #!/usr/bin/env python3
 """
-validate_task_result.py — Validate a Harvis result packet against its JSON Schema.
+validate_task_result.py — Validate a Harvis result packet (schema + cross-task checks).
 
 Usage:
+    # Schema validation only:
+    python scripts/validate_task_result.py --file .harvis/results/T-0001-example-result.json
+
+    # Schema + full cross-task validation:
     python scripts/validate_task_result.py --task T-0001-example
-    python scripts/validate_task_result.py --file .harvis/results/my-result.json
+
+Exit codes:
+    0  — valid
+    1  — validation errors
+    2  — system error (missing file, missing schema, import error)
+
+Dependencies: jsonschema, pyyaml
 """
 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
 try:
-    import jsonschema
+    import yaml
+except ImportError:
+    print("ERROR: 'pyyaml' required. Install with: pip install pyyaml", file=sys.stderr)
+    sys.exit(2)
+
+try:
     from jsonschema import ValidationError, validate
 except ImportError:
-    print(
-        "ERROR: 'jsonschema' package required. Install with: pip install jsonschema",
-        file=sys.stderr,
-    )
+    print("ERROR: 'jsonschema' required. Install with: pip install jsonschema", file=sys.stderr)
     sys.exit(2)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCHEMA_PATH = REPO_ROOT / ".harvis" / "contracts" / "result-packet.schema.json"
+RESULT_SCHEMA_PATH = REPO_ROOT / ".harvis" / "contracts" / "result-packet.schema.json"
 RESULTS_DIR = REPO_ROOT / ".harvis" / "results"
+TASKS_DIR = REPO_ROOT / ".harvis" / "tasks"
 
+
+# ── Loaders ───────────────────────────────────────────────────────────────────
 
 def load_json(path: Path) -> Any:
     with path.open(encoding="utf-8") as f:
         return json.load(f)
 
 
-def validate_schema(result: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+def load_yaml(path: Path) -> Any:
+    with path.open(encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def resolve_result_path(task_id: str) -> Path:
+    candidate = RESULTS_DIR / f"{task_id}-result.json"
+    if not candidate.exists():
+        matches = list(RESULTS_DIR.glob(f"*{task_id}*result*.json"))
+        if matches:
+            return matches[0]
+    return candidate
+
+
+def resolve_task_path(task_id: str) -> Path:
+    candidate = TASKS_DIR / f"{task_id}.yaml"
+    if not candidate.exists():
+        matches = list(TASKS_DIR.glob(f"*{task_id}*.yaml"))
+        if matches:
+            return matches[0]
+    return candidate
+
+
+# ── Check 1 : JSON Schema ─────────────────────────────────────────────────────
+
+def check_schema(result: dict[str, Any], schema: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     try:
         validate(instance=result, schema=schema)
     except ValidationError as e:
-        errors.append(f"Schema violation: {e.message} (path: {list(e.absolute_path)})")
+        errors.append(f"[schema] {e.message} (path: {list(e.absolute_path)})")
     return errors
 
 
-def validate_logic(result: dict[str, Any]) -> list[str]:
+# ── Check 2 : task_id coherence ───────────────────────────────────────────────
+
+def check_task_id(task: dict[str, Any], result: dict[str, Any]) -> list[str]:
+    t_id: str = task.get("task_id", "")
+    r_id: str = result.get("task_id", "")
+    if t_id != r_id:
+        return [f"[task_id] mismatch — task='{t_id}' vs result='{r_id}'"]
+    return []
+
+
+# ── Check 3 : scope (allowed_paths / forbidden_paths) ─────────────────────────
+
+def _path_matches(filepath: str, pattern: str) -> bool:
+    """True if filepath matches pattern (exact, glob, or directory prefix)."""
+    if fnmatch.fnmatch(filepath, pattern):
+        return True
+    norm = pattern.rstrip("/")
+    if filepath == norm or filepath.startswith(norm + "/"):
+        return True
+    return False
+
+
+def check_scope(task: dict[str, Any], result: dict[str, Any]) -> list[str]:
     errors: list[str] = []
+    scope: dict[str, Any] = task.get("scope", {})
+    allowed: list[str] = scope.get("allowed_paths", [])
+    forbidden: list[str] = scope.get("forbidden_paths", [])
+    changed: list[str] = result.get("changed_files", [])
 
-    task_id: str = result.get("task_id", "")
-    if not task_id.startswith("T-"):
-        errors.append(f"task_id '{task_id}' does not match expected pattern T-NNNN-*")
+    if not allowed:
+        return []
 
-    status: str = result.get("status", "")
-    if status == "failure" and "error" not in result:
-        errors.append("status is 'failure' but 'error' field is missing")
-
-    if status == "success" and result.get("error"):
-        errors.append("status is 'success' but 'error' field is present — inconsistent")
-
-    trace: list[dict[str, Any]] = result.get("trace", [])
-    for i, entry in enumerate(trace):
-        if not isinstance(entry.get("step"), int):
-            errors.append(f"trace[{i}].step is not an integer")
-        if not entry.get("message"):
-            errors.append(f"trace[{i}].message is empty")
-
+    for filepath in changed:
+        if not any(_path_matches(filepath, p) for p in allowed):
+            errors.append(
+                f"[scope] '{filepath}' is not in allowed_paths {allowed}"
+            )
+        for fp in forbidden:
+            if _path_matches(filepath, fp):
+                errors.append(
+                    f"[scope] '{filepath}' matches forbidden_paths pattern '{fp}'"
+                )
     return errors
 
 
-def resolve_result_path(task_id: str | None, file_path: str | None) -> Path:
-    if file_path:
-        return Path(file_path).resolve()
-    if task_id:
-        candidate = RESULTS_DIR / f"{task_id}-result.json"
-        if not candidate.exists():
-            matches = list(RESULTS_DIR.glob(f"*{task_id}*result*.json"))
-            if matches:
-                return matches[0]
-        return candidate
-    raise ValueError("Either --task or --file must be provided")
+# ── Check 4 : required_outputs presence ──────────────────────────────────────
 
+def check_required_outputs(task: dict[str, Any], result: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    required: list[str] = task.get("required_outputs", [])
+    for field in required:
+        val = result.get(field)
+        if val is None:
+            errors.append(f"[required_outputs] '{field}' is missing from result packet")
+        elif val == [] or val == "":
+            errors.append(f"[required_outputs] '{field}' is present but empty")
+    return errors
+
+
+# ── Check 5 : checks mandatory for completed statuses ────────────────────────
+
+def check_checks_present(result: dict[str, Any]) -> list[str]:
+    status: str = result.get("status", "")
+    checks: list[Any] = result.get("checks", [])
+    if status in ("completed", "completed_with_risks") and not checks:
+        return [
+            f"[checks] status='{status}' requires at least one check — 'checks' is empty"
+        ]
+    return []
+
+
+# ── Check 6a : status / blockers / risks coherence ───────────────────────────
+
+def check_status_coherence(result: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    status: str = result.get("status", "")
+    blockers: list[Any] = result.get("blockers", [])
+    risks: list[Any] = result.get("risks", [])
+
+    rules: dict[str, tuple[bool, str]] = {
+        "blocked":              (bool(blockers),          "at least one blocker required"),
+        "failed":               (bool(blockers or risks), "at least one risk or blocker required"),
+        "completed":            (not blockers,            "no blockers allowed (use 'blocked' or 'completed_with_risks')"),
+        "completed_with_risks": (bool(risks),             "at least one risk required"),
+        "out_of_scope":         (bool(blockers or risks), "at least one blocker or risk required as explanation"),
+    }
+
+    if status in rules:
+        ok, msg = rules[status]
+        if not ok:
+            errors.append(f"[status_coherence] status='{status}': {msg}")
+    return errors
+
+
+# ── Check 6b : changed_files / status coherence ──────────────────────────────
+
+def check_changed_files_coherence(result: dict[str, Any]) -> list[str]:
+    status: str = result.get("status", "")
+    changed: list[Any] = result.get("changed_files", [])
+    if status in ("completed", "completed_with_risks") and not changed:
+        return [
+            f"[changed_files] status='{status}' but 'changed_files' is empty"
+            " — a completing execution must declare what it changed"
+        ]
+    return []
+
+
+# ── Runner ────────────────────────────────────────────────────────────────────
+
+def run_all_checks(
+    result: dict[str, Any],
+    schema: dict[str, Any],
+    task: dict[str, Any] | None,
+) -> list[str]:
+    errors = check_schema(result, schema)
+    if task is not None:
+        errors += check_task_id(task, result)
+        errors += check_scope(task, result)
+        errors += check_required_outputs(task, result)
+    errors += check_checks_present(result)
+    errors += check_status_coherence(result)
+    errors += check_changed_files_coherence(result)
+    return errors
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate a Harvis result packet")
-    parser.add_argument("--task", metavar="TASK_ID", help="Task ID (e.g. T-0001-example)")
-    parser.add_argument("--file", metavar="PATH", help="Direct path to result JSON file")
+    parser = argparse.ArgumentParser(
+        description="Validate a Harvis result packet (schema + cross-task checks)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "examples:\n"
+            "  %(prog)s --task T-0001-example          # schema + cross-task\n"
+            "  %(prog)s --file path/to/result.json     # schema only\n"
+            "  %(prog)s --task T-0001-example --file path/to/result.json  # both"
+        ),
+    )
+    parser.add_argument(
+        "--task", metavar="TASK_ID",
+        help="Task ID (e.g. T-0001-example) — loads task packet, enables cross-checks",
+    )
+    parser.add_argument(
+        "--file", metavar="PATH",
+        help="Direct path to result JSON (uses task result file if --task given without --file)",
+    )
     args = parser.parse_args()
 
     if not args.task and not args.file:
         parser.print_help()
         return 1
 
-    if not SCHEMA_PATH.exists():
-        print(f"ERROR: Schema not found at {SCHEMA_PATH}", file=sys.stderr)
+    if not RESULT_SCHEMA_PATH.exists():
+        print(f"ERROR: Result schema not found: {RESULT_SCHEMA_PATH}", file=sys.stderr)
         return 2
 
-    try:
-        result_path = resolve_result_path(args.task, args.file)
-    except ValueError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
+    result_path: Path
+    if args.file:
+        result_path = Path(args.file).resolve()
+    elif args.task:
+        result_path = resolve_result_path(args.task)
+    else:
+        print("ERROR: provide --task or --file", file=sys.stderr)
         return 1
 
     if not result_path.exists():
         print(f"ERROR: Result file not found: {result_path}", file=sys.stderr)
         return 2
 
-    print(f"Validating: {result_path}")
-    schema = load_json(SCHEMA_PATH)
-    result = load_json(result_path)
+    result: dict[str, Any] = load_json(result_path)
+    schema: dict[str, Any] = load_json(RESULT_SCHEMA_PATH)
 
-    schema_errors = validate_schema(result, schema)
-    logic_errors = validate_logic(result)
-    all_errors = schema_errors + logic_errors
+    task: dict[str, Any] | None = None
+    if args.task:
+        task_path = resolve_task_path(args.task)
+        if task_path.exists():
+            task = load_yaml(task_path)
+        else:
+            print(
+                f"WARNING: Task file not found at {task_path} — skipping cross-checks",
+                file=sys.stderr,
+            )
 
-    if all_errors:
-        print(f"\n[FAIL] {len(all_errors)} error(s) found:")
-        for err in all_errors:
+    mode = "schema + cross-task" if task else "schema only"
+    print(f"Validating [{mode}]: {result_path.relative_to(REPO_ROOT)}")
+    if task:
+        task_path = resolve_task_path(args.task)
+        print(f"Task packet : {task_path.relative_to(REPO_ROOT)}")
+
+    errors = run_all_checks(result, schema, task)
+
+    if errors:
+        print(f"\n[FAIL] {len(errors)} error(s):")
+        for err in errors:
             print(f"  x {err}")
         return 1
 
     print(
-        f"[OK] Result packet is valid"
-        f" (task_id={result.get('task_id')}, status={result.get('status')})"
+        f"[OK] valid — task_id={result.get('task_id')}, status={result.get('status')}"
     )
     return 0
 

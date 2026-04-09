@@ -1,29 +1,47 @@
 task_id: "T-0001-example"
-task_type: "code_generation"
-created_at: "2026-04-09T14:57:00Z"
-requested_by: "human:root"
-priority: "normal"
-authorization: "approved"
-risk: "low"
+title: "Renforcer le validateur de result packets avec contrôles croisés"
+objective: >
+  Réécrire scripts/validate_task_result.py pour qu'il valide le result packet
+  contre son schéma JSON ET le croise avec le task packet correspondant
+  (scope, required_outputs, cohérence status/blockers/risks).
 
-input:
-  description: "Créer le script de validation de result packets pour le MVP Harvis."
-  context: >
-    Projet harvis-windsurf-mvp, socle minimal.
-    Le script doit valider un result packet JSON contre le schéma harvis:result-packet:v1
-    et appliquer quelques contrôles logiques complémentaires.
-  files:
-    - ".harvis/contracts/result-packet.schema.json"
-  constraints:
-    - "Python >= 3.11"
-    - "Pas de dépendances exotiques — stdlib + jsonschema uniquement"
-    - "Script autonome avec arguments --task et --file"
-    - "Idempotent, pas d'effets de bord"
+repo_root: "/root/CascadeProjects/harvis-windsurf-mvp"
+branch_name: "feat/validator-cross-checks"
+executor: "cascade"
+model_tier: "high_capability"
 
-output_spec:
-  format: "python"
-  target_files:
+scope:
+  allowed_paths:
     - "scripts/validate_task_result.py"
+  forbidden_paths:
+    - ".harvis/contracts/"
+    - ".harvis/state/"
+    - "AGENTS.md"
 
-routing:
-  agent_id: "cascade"
+acceptance_criteria:
+  - "Le script valide le result packet contre result-packet.schema.json"
+  - "Avec --task, le script charge le task packet YAML et effectue les contrôles croisés"
+  - "Les changed_files sont vérifiés contre scope.allowed_paths et scope.forbidden_paths"
+  - "Les required_outputs du task packet sont vérifiés comme non vides dans le result packet"
+  - "La cohérence status/blockers/risks/changed_files est vérifiée"
+  - "Exit code 0 si valide, 1 si erreurs, 2 si erreur système"
+
+constraints:
+  - "Python >= 3.11, annotations de types obligatoires"
+  - "Dépendances : jsonschema + pyyaml uniquement (pas de framework)"
+  - "Script autonome, idempotent, sans effets de bord"
+  - "Messages d'erreur lisibles et actionnables"
+
+required_outputs:
+  - "changed_files"
+  - "checks"
+  - "assumptions"
+  - "next_step"
+
+execution_policy:
+  require_human_approval_for:
+    - "toute modification hors de scripts/validate_task_result.py"
+  max_attempts: 2
+  escalate_if:
+    - "ambiguïté sur la logique de matching des allowed_paths"
+    - "incertitude sur le comportement attendu pour les statuts partiels"
