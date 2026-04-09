@@ -13,8 +13,9 @@ build/
 *.key
 *.pem
 
-# Harvis runtime (non-versionné)
-.harvis/results/
+# Harvis runtime (non-versionné — fichiers générés à l'exécution)
+.harvis/results/*-result.json
+!.harvis/results/T-0001-*-result.json
 .harvis/artifacts/
 .harvis/tasks/*.lock
 

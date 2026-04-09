@@ -1,0 +1,29 @@
+task_id: "T-0001-example"
+task_type: "code_generation"
+created_at: "2026-04-09T14:57:00Z"
+requested_by: "human:root"
+priority: "normal"
+authorization: "approved"
+risk: "low"
+
+input:
+  description: "Créer le script de validation de result packets pour le MVP Harvis."
+  context: >
+    Projet harvis-windsurf-mvp, socle minimal.
+    Le script doit valider un result packet JSON contre le schéma harvis:result-packet:v1
+    et appliquer quelques contrôles logiques complémentaires.
+  files:
+    - ".harvis/contracts/result-packet.schema.json"
+  constraints:
+    - "Python >= 3.11"
+    - "Pas de dépendances exotiques — stdlib + jsonschema uniquement"
+    - "Script autonome avec arguments --task et --file"
+    - "Idempotent, pas d'effets de bord"
+
+output_spec:
+  format: "python"
+  target_files:
+    - "scripts/validate_task_result.py"
+
+routing:
+  agent_id: "cascade"

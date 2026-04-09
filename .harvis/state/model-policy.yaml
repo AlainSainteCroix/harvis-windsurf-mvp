@@ -1,12 +1,41 @@
 version: "0.1.0"
-created_at: "2026-04-09"
+updated_at: "2026-04-09"
 
 model_policy:
-  default_model: null
-  fallback_model: null
-  rules: []
-  # Example rule format:
-  # - match:
-  #     task_type: "reasoning"
-  #   use_model: "model_id"
-  #   max_tokens: 4096
+  profiles:
+    high_capability:
+      preferred: "claude-sonnet"
+      fallback: "gpt-4o"
+      max_tokens: 8192
+      temperature: 0.2
+
+    fast:
+      preferred: "claude-haiku"
+      fallback: "gpt-4o-mini"
+      max_tokens: 2048
+      temperature: 0.1
+
+  rules:
+    - match:
+        task_type: "code_generation"
+      profile: "high_capability"
+
+    - match:
+        task_type: "code_review"
+      profile: "high_capability"
+
+    - match:
+        task_type: "analysis"
+      profile: "high_capability"
+
+    - match:
+        task_type: "refactor"
+      profile: "high_capability"
+
+    - match:
+        task_type: "validation"
+      profile: "fast"
+
+    - match:
+        task_type: "documentation"
+      profile: "fast"

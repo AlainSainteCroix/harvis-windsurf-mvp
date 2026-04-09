@@ -1,0 +1,20 @@
+{
+  "task_id": "T-0001-example",
+  "agent_id": "cascade",
+  "status": "success",
+  "produced_at": "2026-04-09T14:58:00Z",
+  "summary": "Script scripts/validate_task_result.py créé. Valide un result packet JSON contre le schéma harvis:result-packet:v1 et applique des contrôles logiques complémentaires.",
+  "trace": [
+    { "step": 1, "message": "Lecture du schéma .harvis/contracts/result-packet.schema.json", "level": "info" },
+    { "step": 2, "message": "Génération de scripts/validate_task_result.py (Python 3.11, jsonschema, CLI --task/--file)", "level": "info" },
+    { "step": 3, "message": "Contrôles logiques ajoutés : pattern task_id, cohérence status/error, intégrité trace", "level": "info" },
+    { "step": 4, "message": "Validation terminée sans erreur — fichier conforme au contrat output_spec", "level": "info" }
+  ],
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "scripts/validate_task_result.py",
+      "description": "Validateur CLI pour result packets JSON"
+    }
+  ]
+}

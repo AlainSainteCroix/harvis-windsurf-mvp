@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harvis:task-packet:v1",
+  "title": "TaskPacket",
+  "description": "Contrat définissant une tâche dispatchée à un agent Harvis.",
+  "type": "object",
+  "required": ["task_id", "task_type", "created_at", "requested_by", "input"],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{4}-[a-z0-9-]+$",
+      "description": "Identifiant unique de la tâche, ex: T-0001-example"
+    },
+    "task_type": {
+      "type": "string",
+      "enum": ["code_generation", "code_review", "analysis", "documentation", "validation", "refactor", "other"],
+      "description": "Catégorie de la tâche"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp de création ISO 8601"
+    },
+    "requested_by": {
+      "type": "string",
+      "description": "Identifiant de l'agent ou de l'utilisateur ayant créé la tâche"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "normal", "high", "critical"],
+      "default": "normal"
+    },
+    "authorization": {
+      "type": "string",
+      "enum": ["pending", "approved", "denied"],
+      "default": "pending",
+      "description": "Doit être 'approved' pour les tâches risk:high"
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "default": "low"
+    },
+    "input": {
+      "type": "object",
+      "description": "Payload d'entrée spécifique à la tâche",
+      "required": ["description"],
+      "properties": {
+        "description": { "type": "string" },
+        "context": { "type": "string" },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "output_spec": {
+      "type": "object",
+      "description": "Définit ce que l'agent doit produire",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["json", "yaml", "markdown", "python", "text"]
+        },
+        "target_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "routing": {
+      "type": "object",
+      "description": "Override de routage explicite (optionnel)",
+      "properties": {
+        "agent_id": { "type": "string" },
+        "model_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
