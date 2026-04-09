@@ -52,6 +52,32 @@ pytest tests/ -v
 
 ---
 
+## Scaffolder une nouvelle tâche
+
+```bash
+python scripts/new_task.py \
+  --task-id T-0003-my-task \
+  --title "Mon titre" \
+  --objective "Ce que l'agent doit accomplir."
+```
+
+Options utiles :
+
+| Option | Rôle | Défaut |
+|---|---|---|
+| `--task-id` | ID de tâche (format `T-NNNN-slug`) | requis |
+| `--title` | Titre court | requis |
+| `--objective` | Objectif de la tâche | requis |
+| `--allowed-path` | Pattern glob autorisé (répétable) | `scripts/**` |
+| `--forbidden-path` | Pattern glob interdit (répétable) | liste standard |
+| `--branch-name` | Branche git | `harvis/<task_id>` |
+| `--dry-run` | Affiche le YAML sans écrire | — |
+| `--force` | Écrase si le fichier existe déjà | — |
+
+Le YAML généré est validé contre `task-packet.schema.json` avant écriture.
+
+---
+
 ## Dépendances
 
 | Paquet | Usage |
@@ -74,6 +100,7 @@ Python >= 3.11 requis.
   state/        — registry, routing-policy, model-policy
 scripts/
   validate_task_result.py   — validateur CLI
+  new_task.py               — scaffolder de task packets
 tests/
   test_validate_task_result.py
   fixtures/     — cas invalides pour les tests
