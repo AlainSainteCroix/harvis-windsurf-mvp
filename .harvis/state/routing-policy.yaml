@@ -1,0 +1,10 @@
+version: "0.1.0"
+created_at: "2026-04-09"
+
+routing:
+  default_agent: null
+  rules: []
+  # Example rule format:
+  # - match:
+  #     task_type: "code_generation"
+  #   route_to: "agent_id"

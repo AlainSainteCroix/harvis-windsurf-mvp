@@ -1,0 +1,12 @@
+version: "0.1.0"
+created_at: "2026-04-09"
+
+model_policy:
+  default_model: null
+  fallback_model: null
+  rules: []
+  # Example rule format:
+  # - match:
+  #     task_type: "reasoning"
+  #   use_model: "model_id"
+  #   max_tokens: 4096
