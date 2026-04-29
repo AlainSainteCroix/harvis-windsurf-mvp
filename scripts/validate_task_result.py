@@ -319,7 +319,11 @@ def main() -> int:
             return 1
 
     mode = "task-schema + result-schema + cross-task" if task else "result-schema only"
-    print(f"Validating [{mode}]: {result_path.relative_to(REPO_ROOT)}")
+    try:
+        result_display = result_path.relative_to(REPO_ROOT)
+    except ValueError:
+        result_display = result_path
+    print(f"Validating [{mode}]: {result_display}")
     if task and task_display_path:
         try:
             print(f"Task packet : {task_display_path.relative_to(REPO_ROOT)}")

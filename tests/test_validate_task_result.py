@@ -60,6 +60,19 @@ def test_out_of_scope_fails() -> None:
     assert "scope" in result.stdout
 
 
+def test_file_outside_repo_does_not_crash(tmp_path: Path) -> None:
+    """--file pointing outside repo root must not raise ValueError (regression)."""
+    outside = tmp_path / "some-result.json"
+    outside.write_text(
+        (REPO_ROOT / ".harvis" / "results" / "T-0001-example-result.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    result = run("--file", str(outside))
+    assert result.returncode == 0, result.stderr
+    assert "[OK]" in result.stdout
+    assert "ValueError" not in result.stderr
+
+
 def test_invalid_task_packet_fails_fast() -> None:
     """Task packet sans scope → fail-fast avant cross-checks (exit 1)."""
     result = run(
