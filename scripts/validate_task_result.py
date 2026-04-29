@@ -63,7 +63,7 @@ def load_yaml(path: Path) -> Any:
 def resolve_result_path(task_id: str) -> Path:
     candidate = RESULTS_DIR / f"{task_id}-result.json"
     if not candidate.exists():
-        matches = list(RESULTS_DIR.glob(f"*{task_id}*result*.json"))
+        matches = sorted(RESULTS_DIR.glob(f"*{task_id}*result*.json"))
         if matches:
             return matches[0]
     return candidate
@@ -72,7 +72,7 @@ def resolve_result_path(task_id: str) -> Path:
 def resolve_task_path(task_id: str) -> Path:
     candidate = TASKS_DIR / f"{task_id}.yaml"
     if not candidate.exists():
-        matches = list(TASKS_DIR.glob(f"*{task_id}*.yaml"))
+        matches = sorted(TASKS_DIR.glob(f"*{task_id}*.yaml"))
         if matches:
             return matches[0]
     return candidate
