@@ -1,8 +1,77 @@
 # harvis-windsurf-mvp
 
-Socle de gouvernance de tâches pour l'architecture **Harvis/WindSurf**.
+Socle de gouvernance de tâches pour l'architecture **Harvis ↔ WindSurf**.
+
+Le projet formalise une façon propre de faire travailler Harvis/OpenClaw et WindSurf ensemble :
+
+- **Harvis/OpenClaw** prépare, cadre, route et vérifie les tâches.
+- **WindSurf** exécute dans un workspace de code avec des règles explicites.
+- **Git, tests et artefacts** servent de couche de preuve.
 
 Toute tâche est définie par un **task packet** (contrat d'entrée, YAML) et produit un **result packet** (preuve d'exécution, JSON). Le validateur croise les deux et garantit la cohérence du protocole.
+
+---
+
+## Finalité
+
+L'objectif n'est pas une simple intégration IDE. Le MVP sert à construire un modèle durable :
+
+```text
+intention Harvis
+  → task packet borné
+  → exécution WindSurf
+  → result packet vérifiable
+  → tests / diff / artefacts
+  → consolidation Harvis
+```
+
+Ce cadre permet de garder :
+
+- un scope clair ;
+- des chemins autorisés/interdits ;
+- des critères d'acceptation explicites ;
+- une preuve de validation après exécution ;
+- une continuité exploitable entre sessions.
+
+---
+
+## Workflow opératoire
+
+1. **Créer ou choisir une tâche**
+   - Définir un objectif court.
+   - Fixer les chemins autorisés/interdits.
+   - Définir les outputs attendus.
+
+2. **Générer le task packet**
+
+   ```bash
+   python scripts/new_task.py \
+     --task-id T-0003-my-task \
+     --title "Mon titre" \
+     --objective "Ce que l'agent doit accomplir."
+   ```
+
+3. **Exécuter dans WindSurf**
+   - Ouvrir le workspace prévu.
+   - Donner à WindSurf le contexte/ticket.
+   - Laisser WindSurf produire les changements et preuves.
+
+4. **Produire ou collecter le result packet**
+   - Fichiers modifiés.
+   - Checks exécutés.
+   - Statut.
+   - Risques ou limites.
+
+5. **Valider**
+
+   ```bash
+   python scripts/validate_task_result.py --task T-0001-example
+   ```
+
+6. **Consolider**
+   - Relire le diff.
+   - Lancer les tests.
+   - Committer seulement si le résultat est propre.
 
 ---
 
@@ -34,21 +103,32 @@ Exit codes : `0` valide · `1` erreurs · `2` erreur système
 ## Lancer les tests
 
 ```bash
-# Installer les dépendances (dans un venv ou avec --break-system-packages)
-pip install jsonschema pyyaml pytest
+# Installer les dépendances de dev dans un venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
 
 # Lancer les tests
 pytest tests/ -v
 ```
 
-Sur Kali (environnement géré) :
+Alternative rapide si l'environnement est déjà prêt :
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-pytest tests/ -v
+pytest -q
 ```
+
+---
+
+## CI GitHub
+
+La CI exécute sur Python 3.11 et 3.12 :
+
+1. installation éditable avec extras dev ;
+2. build `sdist` + `wheel` ;
+3. tests `pytest`.
+
+Workflow : `.github/workflows/ci.yml`
 
 ---
 
@@ -92,12 +172,14 @@ Python >= 3.11 requis.
 
 ## Structure
 
-```
+```text
 .harvis/
   contracts/    — schémas JSON (task-packet, result-packet)
   tasks/        — task packets YAML
   results/      — result packets JSON
   state/        — registry, routing-policy, model-policy
+.github/
+  workflows/    — CI GitHub Actions
 scripts/
   validate_task_result.py   — validateur CLI
   new_task.py               — scaffolder de task packets
@@ -106,3 +188,12 @@ tests/
   fixtures/     — cas invalides pour les tests
 pyproject.toml
 ```
+
+---
+
+## Posture de sécurité
+
+- Ne pas élargir le scope d'une tâche sans nouveau task packet.
+- Ne pas considérer un résultat comme valide sans checks explicites.
+- Préférer des commits petits, lisibles et vérifiables.
+- Garder Harvis comme orchestrateur/consolidateur, pas comme simple passe-plat.
