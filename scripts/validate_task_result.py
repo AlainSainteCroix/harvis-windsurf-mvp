@@ -63,7 +63,7 @@ def load_yaml(path: Path) -> Any:
 def resolve_result_path(task_id: str) -> Path:
     candidate = RESULTS_DIR / f"{task_id}-result.json"
     if not candidate.exists():
-        matches = list(RESULTS_DIR.glob(f"*{task_id}*result*.json"))
+        matches = sorted(RESULTS_DIR.glob(f"*{task_id}*result*.json"))
         if matches:
             return matches[0]
     return candidate
@@ -72,7 +72,7 @@ def resolve_result_path(task_id: str) -> Path:
 def resolve_task_path(task_id: str) -> Path:
     candidate = TASKS_DIR / f"{task_id}.yaml"
     if not candidate.exists():
-        matches = list(TASKS_DIR.glob(f"*{task_id}*.yaml"))
+        matches = sorted(TASKS_DIR.glob(f"*{task_id}*.yaml"))
         if matches:
             return matches[0]
     return candidate
@@ -319,7 +319,11 @@ def main() -> int:
             return 1
 
     mode = "task-schema + result-schema + cross-task" if task else "result-schema only"
-    print(f"Validating [{mode}]: {result_path.relative_to(REPO_ROOT)}")
+    try:
+        result_display = result_path.relative_to(REPO_ROOT)
+    except ValueError:
+        result_display = result_path
+    print(f"Validating [{mode}]: {result_display}")
     if task and task_display_path:
         try:
             print(f"Task packet : {task_display_path.relative_to(REPO_ROOT)}")

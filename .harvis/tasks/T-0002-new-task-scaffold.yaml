@@ -1,0 +1,47 @@
+task_id: "T-0002-new-task-scaffold"
+title: "Create a minimal CLI helper to scaffold new task packets"
+objective: >
+  Créer scripts/new_task.py, un CLI minimal qui génère un task packet YAML
+  valide dans .harvis/tasks/ à partir des arguments --task-id, --title,
+  --objective. Le fichier généré doit être conforme au schéma task-packet.schema.json
+  et valider sans erreur via validate_task_result.py.
+
+repo_root: "/root/CascadeProjects/harvis-windsurf-mvp"
+branch_name: "harvis/T-0002-new-task-scaffold"
+executor: "cascade"
+model_tier: "high_capability"
+
+scope:
+  allowed_paths:
+    - "scripts/**"
+    - "README.md"
+  forbidden_paths:
+    - ".harvis/contracts/"
+    - ".windsurf/"
+    - "AGENTS.md"
+    - "pyproject.toml"
+    - "tests/"
+
+acceptance_criteria:
+  - "scripts/new_task.py existe et est exécutable"
+  - "python scripts/new_task.py --task-id T-NNNN-slug --title X --objective Y --dry-run produit un YAML valide"
+  - "Le YAML généré passe la validation du schéma task-packet.schema.json"
+  - "Le script refuse d'écraser un fichier existant sans --force"
+  - "Le script échoue proprement si --task-id ne respecte pas le pattern T-NNNN-slug"
+  - "README.md mentionne le script new_task.py avec un exemple d'usage"
+
+constraints:
+  - "Python >= 3.11, annotations de types obligatoires"
+  - "Dépendances : jsonschema + pyyaml uniquement (déjà présentes)"
+  - "Script autonome, idempotent, sans effets de bord hors .harvis/tasks/"
+
+required_outputs:
+  - "changed_files"
+  - "checks"
+  - "next_step"
+
+execution_policy:
+  max_attempts: 2
+  escalate_if:
+    - "ambiguïté sur les champs requis ou optionnels du schéma task-packet"
+    - "conflit entre les defaults du scaffolder et le schéma"
